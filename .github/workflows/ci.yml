@@ -1,0 +1,37 @@
+name: CI
+
+on: 
+  push:
+    branches: [ '**' ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# ----------------- #
+# CI Python version #
+# ----------------- #
+# In the GitHub CI pipeline, all jobs are run for each Python version located in
+# the repo variable named CI_PYTHON_VERSIONS. Edit this in GitHub under
+# Settings -> Secrets and Variables -> Variables (Tab) -> Repository variables
+#   CI_PYTHON_VERSIONS = ["3.12", "3.13"]  
+
+jobs:
+  dummy_job:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(vars.CI_PYTHON_VERSIONS) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Dummy step (install a dependency)
+        run: |
+          pip install poetry
+
