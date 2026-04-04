@@ -30,4 +30,5 @@ A starter template for Python projects with a clean structure and common develop
 - Pyright
     - Installed with "pip install -e ".[dev]". Alternatively install yourself to use from command line
     - Have pylance extension for VSCode installed, set it to use pyright
+- Install uv (link to site) for dependency management. I installed it via PowerShell.
 - 

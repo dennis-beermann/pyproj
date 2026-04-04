@@ -15,7 +15,7 @@ dependencies = [
   "numpy",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "ruff",
   "pyright",
@@ -26,9 +26,10 @@ Homepage = "https://github.com/dennis-beermann/pyproj-template"
 Repository = "https://github.com/dennis-beermann/pyproj-template"
 
 [tool.ruff]
+src = ["src"]
 line-length = 88
 target-version = "py313"
-src = ["src"]
+cache-dir = ".cache/ruff"
 
 [tool.mypy]
 python_version = "3.13"
