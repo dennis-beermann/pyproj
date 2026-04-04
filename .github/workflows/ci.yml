@@ -3,11 +3,10 @@ name: CI
 on: 
   push:
     branches: [ '**' ]
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # ----------------- #
 # CI Python version #
@@ -18,7 +17,7 @@ permissions:
 #   CI_PYTHON_VERSIONS = ["3.12", "3.13"]  
 
 jobs:
-  dummy_job:
+  typecheck:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -31,7 +30,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Dummy step (install a dependency)
-        run: |
-          pip install poetry
+      - name: Install dependencies
+        run: pip install pyright
+      - name: Run Pyright
+        run: pyright
 

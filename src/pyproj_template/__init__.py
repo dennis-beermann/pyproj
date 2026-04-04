@@ -2,6 +2,6 @@
 #     from proj import function
 # instead of
 #     from proj.module.component import function
-from module.component import function
+from pyproj_template.module.component import function
 
 __all__ = ["function"]
