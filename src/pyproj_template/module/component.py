@@ -1,2 +1,2 @@
 def function(x: str) -> str:
-    return 3
+    return x
