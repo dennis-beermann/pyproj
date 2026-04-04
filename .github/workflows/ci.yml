@@ -33,8 +33,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: uv sync --frozen
-      - name: Run ruff
-        run: uv run ruff format --check .
-      - name: Run Pyright
+      - name: Pyright typecheck
         run: uv run pyright .
-
+      - name: Ruff check
+        run: uv run ruff check .
+      - name: Ruff format check
+        run: uv run ruff format --check .
+      
