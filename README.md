@@ -18,10 +18,10 @@ A starter template for Python projects with a clean structure and common develop
     - in CI: see ci.yml
     - minimal version in pyproject.toml -> [project] -> requires-python
     - pyproject.toml -> tool.ruff -> target-version
-- Project name currently "pyproj-template", rename accordingly in:
-    - src/pyproj-template directory
+- Project name currently "pyproj", rename accordingly in:
+    - src/pyproj directory
     - pyproject.toml -> [project] -> name
-- Define public API in src/pyproj-template/__init__.py
+- Define public API in src/pyproj/__init__.py
 - line length for python files in
     - .vscode/settings.json -> [python] -> editor.rulers
     - pyproject.toml -> [tool.ruff] -> line-length
@@ -32,4 +32,4 @@ A starter template for Python projects with a clean structure and common develop
     - Have pylance extension for VSCode installed, set it to use pyright
 - Install uv (link to site) for dependency management. I installed it via PowerShell. Then run "uv sync" from repo root
 - Install pre-commit via "uv run pre-commit install"
--
+- Rune examples either via console, with task, or with debug launch configuration

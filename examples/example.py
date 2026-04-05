@@ -1,3 +1,3 @@
-from pyproj_template import function
+from pyproj import function
 
 print(function("Hello world!"))

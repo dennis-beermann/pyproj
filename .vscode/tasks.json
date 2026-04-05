@@ -6,10 +6,7 @@
             "type": "shell",
             "command": "uv",
             "args": ["run", "pyright", "."],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "group": { "kind": "build" }
         },
 
         {
@@ -17,10 +14,7 @@
             "type": "shell",
             "command": "uv",
             "args": ["run", "ruff", "format", "--check", "."],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "group": { "kind": "build" }
         },
 
         {
@@ -28,10 +22,15 @@
             "type": "shell",
             "command": "uv",
             "args": ["run", "ruff", "check", "."],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
+            "group": { "kind": "build" }
+        },
+
+        {
+            "label": "Run example",
+            "type": "shell",
+            "command": "uv",
+            "args": ["run", "python", "examples/example.py"],
+            "group": { "kind": "test" }
         }
     ]
 }
