@@ -56,19 +56,23 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      # Ensure the folder exists so the upload-artifact action
-      # doesn't fail if pytest exits early.
-      - name: Create artifacts directory
-        run: mkdir -p .artifacts
+      - name: Run Pytest
+        # We manually override the output directory here to be 100% sure
+        run: |
+          mkdir -p ${{ github.workspace }}/.artifacts
+          uv run pytest --html=${{ github.workspace }}/.artifacts/report.html --self-contained-html
 
-      - name: Pytest
-        # No extra flags needed here because they are in your pyproject.toml
-        run: uv run pytest
+      - name: Debug - List Files
+        if: always()
+        run: |
+          echo "Checking workspace root:"
+          ls -R ${{ github.workspace }}/.artifacts || echo "Directory .artifacts not found!"
 
       - name: Upload Test Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-python-${{ matrix.python-version }}
-          path: .artifacts/
+          # Use the absolute path to the workspace
+          path: ${{ github.workspace }}/.artifacts/
           retention-days: 7
