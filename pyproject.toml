@@ -12,14 +12,17 @@ authors = [
   { name = "Dennis Beermann", email = "dennis.2.beermann@gmail.com" },
 ]
 dependencies = [
-  "numpy",
+    "numpy>=2.4.4",
 ]
 
 [dependency-groups]
 dev = [
-  "ruff",
-  "pyright",
   "pre-commit>=4.5.1",
+  "pyright>=1.1.408",
+  "pytest>=9.0.2",
+  "pytest-cov>=7.1.0",
+  "pytest-html>=4.2.0",
+  "ruff>=0.15.9",
 ]
 
 [project.urls]
@@ -39,11 +42,20 @@ warn_return_any = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
-addopts = "-ra --cov=pyproj --cov-report=term-missing"
 testpaths = ["tests"]
+addopts = """
+-ra
+--cov=pyproj
+--cov-report=term-missing
+--cov-report=html:.artifacts/pytest-cov/coverage-html
+--html=.artifacts/pytest/pytest-report.html
+--junitxml=.artifacts/pytest/junit.xml
+"""
+cache_dir = ".cache/pytest"
 
 [tool.coverage.run]
 source = ["src/pyproj"]
+data_file = ".cache/pytest-cov/.coverage"
 
 [tool.coverage.report]
 exclude_lines = [
