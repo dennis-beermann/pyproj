@@ -27,3 +27,12 @@ A starter template for Python projects with a clean structure and common develop
 - Set Python interpreter
 - Copyright in docs/conf.py -> LICENSE
 - Docs generated to docs/build/html by both CI and VSCode task. Later integration into readthedocs can be configured to perform automatically.
+
+When using this template (= creating a new repo from this one):
+- uv sync
+- pyproject.toml
+- README.md
+- src/pyproj -> rename
+- docs/source/index.md
+- uv run pre-commit install
+- Add Python versions as variables on GitHub
