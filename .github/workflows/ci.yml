@@ -1,21 +1,112 @@
 name: CI
 
+# ----------------- #
+# Workflow triggers #
+# ----------------- #
+# This workflow runs in four situations:
+#
+# 1. A commit is pushed to main.
+# 2. A pull request is opened or updated.
+# 3. A GitHub Release is published.
+#    This is the production release trigger: after all CI jobs pass, the package
+#    is built and uploaded to PyPI.
+# 4. The workflow is started manually from the GitHub Actions page.
+#    A manual run can either execute CI only (publish_target = none) or build and
+#    upload the package to TestPyPI (publish_target = testpypi).
+#
+# Documentation is intentionally not built here. ReadTheDocs builds and deploys
+# the documentation independently when connected to the repository.
 on:
   push:
-    branches: [ '**' ]
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: "Optional publication target"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - none
+          - testpypi
 
+# Read-only repository access is sufficient for all normal CI jobs. The two
+# publication jobs override this locally with `id-token: write`, which is needed
+# for PyPI Trusted Publishing via OpenID Connect (OIDC).
 permissions:
   contents: read
 
 # ----------------- #
-# CI Python version #
+# CI Python versions
 # ----------------- #
-# In the GitHub CI pipeline, all jobs are run for each Python version located in
-# the repo variable named CI_PYTHON_VERSIONS. Edit this in GitHub under
-# Settings -> Secrets and Variables -> Variables (Tab) -> Repository variables
+# The test job runs once for every Python version listed in the repository
+# variable CI_PYTHON_VERSIONS. Configure this under:
+#
+# Settings -> Secrets and variables -> Actions -> Variables
+#
+# Example value:
 #   CI_PYTHON_VERSIONS = ["3.12", "3.13"]
+#
+# Linting, type checking, and package building use one explicit Python version
+# because their purpose is not to test interpreter compatibility.
+
+# ----------------------- #
+# PyPI integration setup  #
+# ----------------------- #
+# The workflow code below is prepared for TestPyPI and PyPI publication, but a
+# repository created from this template is NOT connected automatically. Complete
+# the following setup before attempting to publish a real project:
+#
+# 1. Choose the final package name and version in pyproject.toml.
+#    Each uploaded version must be unique; PyPI and TestPyPI do not allow an
+#    existing release file/version to be overwritten.
+#
+# 2. In GitHub, create these two Environments under:
+#      Settings -> Environments
+#        - testpypi
+#        - pypi
+#    The names must exactly match the `environment` values used below.
+#    Secrets are not required when Trusted Publishing is used. The production
+#    `pypi` environment may optionally require manual approval.
+#
+# 3. On TestPyPI, register a Trusted Publisher for this GitHub repository.
+#    Configure:
+#      - PyPI project name: value of `project.name` in pyproject.toml
+#      - GitHub owner: repository owner or organization
+#      - Repository name: this repository
+#      - Workflow filename: the filename of this file, for example `ci.yml`
+#      - Environment name: testpypi
+#
+# 4. On production PyPI, register the equivalent Trusted Publisher using:
+#      - the same project, owner, repository, and workflow filename
+#      - Environment name: pypi
+#
+#    If the project does not yet exist on PyPI, configure a pending Trusted
+#    Publisher. The first successful publication can then create the project.
+#
+# 5. Verify that the distribution can be built locally before the first release:
+#      uv build
+#    This should create a wheel and source distribution in `dist/`.
+#
+# Publication behavior after setup:
+#   - Manual workflow run + publish_target=testpypi -> publish to TestPyPI
+#   - Published GitHub Release                         -> publish to PyPI
+#   - Pull requests, pushes to main, and manual runs with `none` never publish
+#
+# Recommended release sequence:
+#   1. Update the version and changelog on a branch.
+#   2. Merge the pull request into main.
+#   3. Optionally run this workflow manually against TestPyPI.
+#   4. Create and publish a GitHub Release whose tag matches the package version.
+#   5. The release event runs CI, builds the tagged source, and publishes to PyPI.
 
 jobs:
+  # Ruff checks source-code style and verifies that files already match Ruff's
+  # formatter. `uv sync --frozen` installs exactly the dependency versions from
+  # uv.lock and fails if the lock file is inconsistent with pyproject.toml.
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
@@ -23,21 +114,34 @@ jobs:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
         with:
+          python-version: "3.13"
           enable-cache: true
+      - name: Install
+        run: uv sync --frozen
       - name: Ruff
         run: |
           uv run ruff check .
           uv run ruff format --check .
 
+  # Pyright performs static type checking. It is a separate job so linting and
+  # typing failures appear independently in the GitHub Actions overview.
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - name: Install
+        run: uv sync --frozen
       - name: Pyright
         run: uv run pyright .
 
+  # The matrix creates one independent test job per configured Python version.
+  # `fail-fast: false` keeps the remaining versions running when one fails, which
+  # makes compatibility problems easier to diagnose.
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -50,12 +154,16 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
+          enable-cache: true
       - name: Install
         run: uv sync --frozen
       - name: Pytest
         run: |
           mkdir -p test-reports
           uv run pytest --html=test-reports/report.html --self-contained-html --junitxml=test-reports/junit.xml
+
+      # `if: always()` uploads reports even when pytest fails. Each Python version
+      # uses a distinct artifact name so matrix runs do not overwrite each other.
       - name: Upload Test Artifacts
         if: always()
         uses: actions/upload-artifact@v6
@@ -64,12 +172,88 @@ jobs:
           path: test-reports/
           if-no-files-found: error
 
-  docs:
+  # This job runs only when publication is requested. It waits for all CI checks,
+  # builds the wheel and source distribution, and stores them as a workflow
+  # artifact. Building separately from publishing keeps the OIDC permission out
+  # of the job that executes project build code.
+  build-package:
+    name: Build package
+    if: >
+      github.event_name == 'release' ||
+      (
+        github.event_name == 'workflow_dispatch' &&
+        inputs.publish_target == 'testpypi'
+      )
+    needs:
+      - lint
+      - typecheck
+      - test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
       - uses: astral-sh/setup-uv@v7
-      - name: Install
-        run: uv sync --frozen
-      - name: Sphinx build
-        run: uv run sphinx-build -b html -W --keep-going docs/source docs/build/html
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Build package
+        run: uv build
+
+      - name: Upload package distributions
+        uses: actions/upload-artifact@v6
+        with:
+          name: package-distributions
+          path: dist/
+          if-no-files-found: error
+
+  # TestPyPI publication is deliberately manual. Start the workflow through the
+  # Actions page and choose `testpypi`. The downloaded artifact is exactly the
+  # distribution produced by build-package after CI passed.
+  publish-testpypi:
+    name: Publish to TestPyPI
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      inputs.publish_target == 'testpypi'
+    needs:
+      - build-package
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download package distributions
+        uses: actions/download-artifact@v7
+        with:
+          name: package-distributions
+          path: dist/
+
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  # Production publication happens only when a GitHub Release is published.
+  # The release tag should match the version declared in pyproject.toml. Trusted
+  # Publishing authenticates this job using its GitHub OIDC identity, so no PyPI
+  # API token needs to be stored in GitHub Secrets.
+  publish-pypi:
+    name: Publish to PyPI
+    if: github.event_name == 'release'
+    needs:
+      - build-package
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download package distributions
+        uses: actions/download-artifact@v7
+        with:
+          name: package-distributions
+          path: dist/
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

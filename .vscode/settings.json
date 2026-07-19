@@ -19,6 +19,11 @@
     "editor.tabSize": 2
   },
 
+  "[github-actions-workflow]": {
+    "editor.wordWrap": "off",
+    "editor.tabSize": 2
+  },
+
   "[json]": {
     "editor.wordWrap": "off",
     "editor.tabSize": 2
@@ -27,5 +32,7 @@
   "[toml]": {
     "editor.wordWrap": "off",
     "editor.tabSize": 2
-  }
+},
+"python-envs.defaultEnvManager": "ms-python.python:venv",
+"python-envs.defaultPackageManager": "ms-python.python:pip"
 }
